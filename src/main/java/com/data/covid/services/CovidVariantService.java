@@ -51,7 +51,7 @@ public class CovidVariantService {
     public List<CovidVariant> findByName( CovidVariantModel covidVariantModel) {
         Optional<List<CovidVariant>> covidVariants = covidVariantRepository.findByName(covidVariantModel.getName());
         if(covidVariants.isEmpty()) new MyMessageResponse(String.format("CovidVariant name: %s not found", covidVariantModel.getName()), MessageTypes.INFO);
-        return covidVariants.orElse(new ArrayList<CovidVariant>());
+        return covidVariants.orElse(new ArrayList<>());
     }
 
     // return CovidVariant by name and country code
@@ -59,10 +59,7 @@ public class CovidVariantService {
     public CovidVariant findByNameAndCountryCode( CovidVariantModel covidVariantModel, String countryCode) {
         Optional<Country> country = countryRepository.findByCode(countryCode);
 
-
-        Optional<CovidVariant> covidVariant = covidVariantRepository.findByNameAndCountryCode(covidVariantModel.getName(), country.get());
-        if(covidVariant.isEmpty()) new MyMessageResponse(String.format("CovidVariant name: %s not found", covidVariantModel.getName()), MessageTypes.INFO);
-        return covidVariant.orElse(new CovidVariant());
+        return getByNameAndCountryCode( covidVariantModel, country );
     }
 
     // return CovidVariant by name and country name
@@ -70,17 +67,26 @@ public class CovidVariantService {
     public CovidVariant findByNameAndCountryName(CovidVariantModel covidVariantModel, String countryName) {
         Optional<Country> country = countryRepository.findByName(countryName);
 
-        Optional<CovidVariant> covidVariant = covidVariantRepository.findByNameAndCountryCode(covidVariantModel.getName(), country.get());
+        return getByNameAndCountryCode( covidVariantModel, country );
+    }
+
+    private CovidVariant getByNameAndCountryCode(CovidVariantModel covidVariantModel, Optional<Country> country) {
+        Country ctry = (country.orElseGet(Country::new));
+
+        Optional<CovidVariant> covidVariant = covidVariantRepository.findByNameAndCountryCode(covidVariantModel.getName(), ctry);
         if(covidVariant.isEmpty()) new MyMessageResponse(String.format("CovidVariant name: %s not found", covidVariantModel.getName()), MessageTypes.INFO);
         return covidVariant.orElse(new CovidVariant());
     }
+
+
 
     // add new CovidVariant
 
     public ResponseEntity<MessageResponse> add(CovidVariantModel covidVariantModel, String countryCode){
 
         Optional<Country> country = countryRepository.findByCode(countryCode);
-        covidVariantModel.setCountryCode(country.get());
+        Country ctry = (country.orElseGet(Country::new));
+        covidVariantModel.setCountryCode(ctry);
 
         if(covidVariantRepository.existsByName(covidVariantModel.getName()))
             return ResponseEntity.ok(new MyMessageResponse("Error: CovidVariant already exists", MessageTypes.WARN));
@@ -104,9 +110,8 @@ public class CovidVariantService {
 
     public ResponseEntity<MessageResponse> update(Long id, CovidVariant covidVariant, String countryCode){
         Optional<Country> country = countryRepository.findByCode(countryCode);
-        covidVariant.setCountryCode(country.get());
-        // check if exists first
-        // then update
+
+        country.ifPresent(covidVariant::setCountryCode);
 
         if(!covidVariantRepository.existsById(id))
             return ResponseEntity.ok(new MyMessageResponse("Error: Id does not exist ["+id+"] -> cannot update record", MessageTypes.WARN));
